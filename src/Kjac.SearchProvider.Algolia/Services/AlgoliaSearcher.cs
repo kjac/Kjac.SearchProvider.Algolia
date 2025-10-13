@@ -42,6 +42,17 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
         // filters needs splitting into two parts; regular filters (not used for faceting) and facet filters
         Filter[] filtersAsArray = filters as Filter[] ?? filters?.ToArray() ?? [];
         Facet[] facetsAsArray = facets as Facet[] ?? facets?.ToArray() ?? [];
+
+        Facet[] unsupportedFacets = facetsAsArray.Where(IsUnsupportedFacetType).ToArray();
+        if (unsupportedFacets.Length > 0)
+        {
+            _logger.LogWarning(
+                "One or more unsupported facet types were omitted from the query (note that Algolia does not support range facets): {types}",
+                string.Join(", ", unsupportedFacets.Select(facet => facet.GetType().Name))
+            );
+            facetsAsArray = facetsAsArray.Except(unsupportedFacets).ToArray();
+        }
+
         var facetFieldNames = facetsAsArray.Select(facet => facet.FieldName).ToArray();
         Filter[] facetFilters = filtersAsArray.Where(f => facetFieldNames.InvariantContains(f.FieldName)).ToArray();
         Filter[] regularFilters = filtersAsArray.Except(facetFilters).ToArray();
@@ -175,7 +186,7 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
                         return null;
                     }
 
-                    FacetResult? facetResult = facet switch
+                    FacetResult facetResult = facet switch
                     {
                         KeywordFacet keywordFacet => new FacetResult(
                             keywordFacet.FieldName,
@@ -193,21 +204,11 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
                             dateTimeOffsetExactFacet.FieldName,
                             facetValue.Select(kvp => new DateTimeOffsetExactFacetValue(DateTimeOffset.FromUnixTimeSeconds(long.Parse(kvp.Key)), kvp.Value))
                         ),
-                        // seems Algolia has no support for range facets
-                        IntegerRangeFacet or DecimalRangeFacet or DateTimeOffsetRangeFacet => null,
                         _ => throw new ArgumentOutOfRangeException(
                             nameof(facet),
                             $"Encountered an unsupported facet type (Algolia does not support range facets): {facet.GetType().Name}"
                         )
                     };
-
-                    if (facetResult is null)
-                    {
-                        _logger.LogWarning(
-                            "Unable to extract facet results for facet: {facetName}. Possible mismatch between the requested facet type and the indexed facet value. Facet results might be incorrect.",
-                            facet.FieldName
-                        );
-                    }
 
                     return facetResult;
                 }
@@ -228,7 +229,11 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
         return new SearchResult(hitsResponse.NbHits ?? 0, documents, facetResults);
     }
 
-    private string FilterValue(Filter filter)
+    // seems Algolia has no support for range facets
+    private static bool IsUnsupportedFacetType(Facet facet)
+        => facet is IntegerRangeFacet or DecimalRangeFacet or DateTimeOffsetRangeFacet;
+
+    private static string FilterValue(Filter filter)
     {
         var filterValues = FilterValues(filter);
         return FilterValue(filterValues);
@@ -240,7 +245,7 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
             : $"({string.Join(" OR ", filterValues)})";
 
     // TODO: support negated filters
-    private string[] FilterValues(Filter filter)
+    private static string[] FilterValues(Filter filter)
         => filter switch
         {
             TextFilter textFilter => textFilter.Values
@@ -303,15 +308,15 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
         => facet switch
         {
             KeywordFacet => FieldName(facet.FieldName, IndexConstants.FieldTypePostfix.Keywords),
-            IntegerExactFacet or IntegerRangeFacet => FieldName(
+            IntegerExactFacet => FieldName(
                 facet.FieldName,
                 IndexConstants.FieldTypePostfix.Integers
             ),
-            DecimalExactFacet or DecimalRangeFacet => FieldName(
+            DecimalExactFacet => FieldName(
                 facet.FieldName,
                 IndexConstants.FieldTypePostfix.Decimals
             ),
-            DateTimeOffsetExactFacet or DateTimeOffsetRangeFacet => FieldName(
+            DateTimeOffsetExactFacet => FieldName(
                 facet.FieldName,
                 IndexConstants.FieldTypePostfix.DateTimeOffsets
             ),
