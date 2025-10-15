@@ -262,7 +262,9 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
                 .Select(value => $"{FieldName(integerExactFilter)}:{value}").ToArray(),
             IntegerRangeFilter integerRangeFilter => integerRangeFilter.Ranges
                 .Select(range
-                    => $"{FieldName(integerRangeFilter)}:{range.MinValue ?? int.MinValue} TO {range.MaxValue ?? int.MaxValue}"
+                    // NOTE: Algolia range filters include both lower and upper boundaries; Umbraco Search expects the upper
+                    // boundary to be omitted, so we'll have to do this by hand (by subtracting from the upper boundary).
+                    => $"{FieldName(integerRangeFilter)}:{range.MinValue ?? int.MinValue} TO {(range.MaxValue ?? int.MaxValue) - 1}"
                 ).ToArray(),
             DecimalExactFilter decimalExactFilter => decimalExactFilter.Values
                 .Select(value => $"{FieldName(decimalExactFilter)}:{value:F2}").ToArray(),
