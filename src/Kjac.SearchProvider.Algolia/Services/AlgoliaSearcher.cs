@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Globalization;
+using System.Text.Json.Serialization;
 using Algolia.Search.Clients;
 using Algolia.Search.Models.Search;
 using Kjac.SearchProvider.Algolia.Constants;
@@ -261,27 +262,38 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
             IntegerExactFilter integerExactFilter => integerExactFilter.Values
                 .Select(value => $"{FieldName(integerExactFilter)}:{value}").ToArray(),
             IntegerRangeFilter integerRangeFilter => integerRangeFilter.Ranges
-                .Select(range
-                    // NOTE: Algolia range filters include both lower and upper boundaries; Umbraco Search expects the upper
-                    // boundary to be omitted, so we'll have to do this by hand (by subtracting from the upper boundary).
-                    => $"{FieldName(integerRangeFilter)}:{range.MinValue ?? int.MinValue} TO {(range.MaxValue ?? int.MaxValue) - 1}"
+                .Select(range =>
+                    {
+                        // NOTE: Algolia range filters include both lower and upper boundaries; Umbraco Search expects the upper
+                        // boundary to be omitted, so we'll have to do this by hand (by subtracting from the upper boundary).
+                        var maxValue = range.MaxValue ?? int.MaxValue;
+                        maxValue = maxValue > 0 ? maxValue - 1 : maxValue + 1;
+                        return $"{FieldName(integerRangeFilter)}:{range.MinValue ?? int.MinValue} TO {maxValue}";
+                    }
                 ).ToArray(),
             DecimalExactFilter decimalExactFilter => decimalExactFilter.Values
-                .Select(value => $"{FieldName(decimalExactFilter)}:{value:F2}").ToArray(),
+                .Select(value => $"{FieldName(decimalExactFilter)}:{DecimalFilterValue(value)}").ToArray(),
             DecimalRangeFilter decimalRangeFilter => decimalRangeFilter.Ranges
-                .Select(range
-                    // NOTE: Algolia range filters include both lower and upper boundaries; Umbraco Search expects the upper
-                    // boundary to be omitted, so we'll have to do this by hand (by subtracting from the upper boundary).
-                    => $"{FieldName(decimalRangeFilter)}:{(range.MinValue ?? decimal.MinValue):F2} TO {((range.MaxValue ?? decimal.MaxValue) - 0.01m):F2}"
+                .Select(range =>
+                    {
+                        // NOTE: Algolia range filters include both lower and upper boundaries; Umbraco Search expects the upper
+                        // boundary to be omitted, so we'll have to do this by hand (by subtracting from the upper boundary).
+                        var maxValue = range.MaxValue ?? decimal.MaxValue;
+                        maxValue = maxValue > 0 ? maxValue - 0.01m : maxValue + 0.01m;
+                        return $"{FieldName(decimalRangeFilter)}:{DecimalFilterValue(range.MinValue ?? decimal.MinValue)} TO {DecimalFilterValue(maxValue)}";
+                    }
                 ).ToArray(),
             // NOTE: Algolia expects unix timestamps for dates
             DateTimeOffsetExactFilter dateTimeOffsetExactFilter => dateTimeOffsetExactFilter.Values
                 .Select(value => $"{FieldName(dateTimeOffsetExactFilter)}:{value.ToUnixTimeSeconds()}").ToArray(),
             DateTimeOffsetRangeFilter dateTimeOffsetRangeFilter => dateTimeOffsetRangeFilter.Ranges
-                .Select(range
-                    // NOTE: Algolia range filters include both lower and upper boundaries; Umbraco Search expects the upper
-                    // boundary to be omitted, so we'll have to do this by hand (by subtracting from the upper boundary).
-                    => $"{FieldName(dateTimeOffsetRangeFilter)}:{(range.MinValue ?? DateTimeOffset.UnixEpoch).ToUnixTimeSeconds()} TO {(range.MaxValue ?? DateTimeOffset.MaxValue).ToUnixTimeSeconds() - 1}"
+                .Select(range =>
+                    {
+                        // NOTE: Algolia range filters include both lower and upper boundaries; Umbraco Search expects the upper
+                        // boundary to be omitted, so we'll have to do this by hand (by subtracting from the upper boundary).
+                        var maxValue = (range.MaxValue ?? DateTimeOffset.MaxValue).ToUnixTimeSeconds() - 1;
+                        return $"{FieldName(dateTimeOffsetRangeFilter)}:{(range.MinValue ?? DateTimeOffset.UnixEpoch).ToUnixTimeSeconds()} TO {maxValue}";
+                    }
                 ).ToArray(),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(filter),
@@ -351,6 +363,9 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
 
         return $"{sorter.FieldName}{fieldTypePostfix}_{(sorter.Direction is Direction.Ascending ? "asc" : "desc")}";
     }
+
+    private static string DecimalFilterValue(decimal value)
+        => value.ToString("F2", CultureInfo.InvariantCulture);
 
     private record SearchResultDocument
     {
