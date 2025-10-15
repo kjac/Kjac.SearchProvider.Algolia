@@ -162,7 +162,13 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
         var facetCounts = new Dictionary<string, Dictionary<string, int>>();
         for (var i = searchResults.Length - 1; i >= 0; i--)
         {
-            foreach (KeyValuePair<string, Dictionary<string, int>> facetCount in searchResults[i]
+            SearchResponse<SearchResultDocument> searchResult = searchResults[i];
+            if (searchResult.Facets is null)
+            {
+                continue;
+            }
+
+            foreach (KeyValuePair<string, Dictionary<string, int>> facetCount in searchResult
                          .Facets
                          // ignore facets that were picked up already in a previous iteration
                          .Where(facetCount => facetCounts.ContainsKey(facetCount.Key) is false))
