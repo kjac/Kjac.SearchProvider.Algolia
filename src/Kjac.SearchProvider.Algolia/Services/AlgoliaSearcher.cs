@@ -38,6 +38,11 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
         int skip,
         int take)
     {
+        if (query is null && filters is null && facets is null && sorters is null)
+        {
+            return new SearchResult(0, [], []);
+        }
+
         PaginationHelper.ConvertSkipTakeToPaging(skip, take, out var pageNumber, out var pageSize);
 
         // filters needs splitting into two parts; regular filters (not used for faceting) and facet filters
