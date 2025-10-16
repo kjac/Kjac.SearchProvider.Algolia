@@ -54,10 +54,6 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
             facetsAsArray = facetsAsArray.Except(unsupportedFacets).ToArray();
         }
 
-        var facetFieldNames = facetsAsArray.Select(facet => facet.FieldName).ToArray();
-        Filter[] facetFilters = filtersAsArray.Where(f => facetFieldNames.InvariantContains(f.FieldName)).ToArray();
-        Filter[] regularFilters = filtersAsArray.Except(facetFilters).ToArray();
-
         var validIndexAlias = indexAlias.ValidIndexAlias();
 
         // sorting relies on virtual index replicas in Algolia, so we'll grab the first sorter (if applicable) and
@@ -70,7 +66,7 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
 
         var searchQueries = new List<SearchQuery>();
 
-        void AddSearchQuery(Facet[] effectiveFacets, Filter[] effectiveFacetFilters, bool includeHits)
+        void AddSearchQuery(Facet[] effectiveFacets, Filter[] effectiveFilters, bool includeHits)
         {
             var searchParams = new SearchForHits(validIndexAlias)
             {
@@ -78,8 +74,13 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
                 Query = query
             };
 
-            // regular (non-facet) filters
-            var regularFilterValues = string.Join(" AND ", regularFilters.Select(FilterValue));
+            // regular (textual) filters
+            var regularFilterValues = string.Join(
+                " AND ",
+                effectiveFilters
+                    .OfTypes(typeof(TextFilter), typeof(KeywordFilter))
+                    .Select(FilterValue)
+            );
 
             // variance filters
             var indexCultures = culture is null
@@ -93,21 +94,35 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
                 ? varianceFilterValues
                 : $"{varianceFilterValues} AND {regularFilterValues}";
 
+            // numeric (including datetime) filters
+            var numericFilters = effectiveFilters
+                .OfTypes(
+                    typeof(IntegerExactFilter),
+                    typeof(IntegerRangeFilter),
+                    typeof(DecimalExactFilter),
+                    typeof(DecimalRangeFilter),
+                    typeof(DateTimeOffsetExactFilter),
+                    typeof(DateTimeOffsetRangeFilter)
+                )
+                .Select(filter =>
+                    {
+                        var filterValues = FilterValues(filter);
+                        return filterValues.Length == 1
+                            ? new NumericFilters(filterValues[0])
+                            : new NumericFilters(
+                                filterValues.Select(filterValue => new NumericFilters(filterValue)).ToList()
+                            );
+                    }
+                )
+                .ToList();
+
+            if (numericFilters.Count != 0)
+            {
+                searchParams.NumericFilters = new NumericFilters(numericFilters);
+            }
+
             // search facets are just the names of the fields (attributes) to include in the result as facets
             searchParams.Facets = effectiveFacets.Select(FieldName).ToList();
-
-            // facet filters are a somewhat weird construct based on the regular filter syntax
-            searchParams.FacetFilters = new FacetFilters(
-                effectiveFacetFilters
-                    .Select(
-                        filter => new FacetFilters(
-                            FilterValues(filter)
-                                .Select(value => new FacetFilters(value))
-                                .ToList()
-                        )
-                    )
-                    .ToList()
-            );
 
             // pagination
             searchParams.HitsPerPage = includeHits ? pageSize : 0;
@@ -124,16 +139,15 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
 
         // add the "main" document search, which performs all filtering to return the relevant documents.
         // this returns incorrect facet values for active facets.
-        AddSearchQuery(facetsAsArray, facetFilters, true);
+        AddSearchQuery(facetsAsArray, filtersAsArray, true);
 
         // add "facet" searches for all active facets, in order to retrieve correct facet values for these.
         // to NOT retrieve documents for these searches - documents should only be retrieved by the "main" search.
-        foreach (Filter facetFilter in facetFilters)
+        foreach (Facet facet in facetsAsArray)
         {
-            Filter[] effectiveFacetFilters = facetFilters.Except([facetFilter]).ToArray();
-            Facet effectiveFacet = facetsAsArray
-                .First(facet => facet.FieldName.InvariantEquals(facetFilter.FieldName));
-            AddSearchQuery([effectiveFacet], effectiveFacetFilters, false);
+            Filter? facetFilter = filtersAsArray.FirstOrDefault(filter => filter.FieldName.InvariantEquals(facet.FieldName));
+            Filter[] effectiveFilters = facetFilter is null ? filtersAsArray : filtersAsArray.Except([facetFilter]).ToArray();
+            AddSearchQuery([facet], effectiveFilters, false);
         }
 
         SearchClient client = _clientFactory.GetClient();
@@ -205,7 +219,7 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
                         ),
                         DecimalExactFacet decimalExactFacet => new FacetResult(
                             decimalExactFacet.FieldName,
-                            facetValue.Select(kvp => new DecimalExactFacetValue(decimal.Parse(kvp.Key), kvp.Value))
+                            facetValue.Select(kvp => new DecimalExactFacetValue(decimal.Parse(kvp.Key, CultureInfo.InvariantCulture), kvp.Value))
                         ),
                         DateTimeOffsetExactFacet dateTimeOffsetExactFacet => new FacetResult(
                             dateTimeOffsetExactFacet.FieldName,
@@ -260,32 +274,30 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
             KeywordFilter keywordFilter => keywordFilter.Values
                 .Select(value => $"{FieldName(keywordFilter)}:{value.EscapedFilterValue()}").ToArray(),
             IntegerExactFilter integerExactFilter => integerExactFilter.Values
-                .Select(value => $"{FieldName(integerExactFilter)}:{value}").ToArray(),
+                .Select(value => $"{FieldName(integerExactFilter)}={value}").ToArray(),
             IntegerRangeFilter integerRangeFilter => integerRangeFilter.Ranges
                 .Select(range =>
                     {
                         // NOTE: Algolia range filters include both lower and upper boundaries; Umbraco Search expects the upper
                         // boundary to be omitted, so we'll have to do this by hand (by subtracting from the upper boundary).
-                        var maxValue = range.MaxValue ?? int.MaxValue;
-                        maxValue = maxValue > 0 ? maxValue - 1 : maxValue + 1;
+                        var maxValue = (range.MaxValue ?? int.MaxValue) - 1;
                         return $"{FieldName(integerRangeFilter)}:{range.MinValue ?? int.MinValue} TO {maxValue}";
                     }
                 ).ToArray(),
             DecimalExactFilter decimalExactFilter => decimalExactFilter.Values
-                .Select(value => $"{FieldName(decimalExactFilter)}:{DecimalFilterValue(value)}").ToArray(),
+                .Select(value => $"{FieldName(decimalExactFilter)}={DecimalFilterValue(value)}").ToArray(),
             DecimalRangeFilter decimalRangeFilter => decimalRangeFilter.Ranges
                 .Select(range =>
                     {
                         // NOTE: Algolia range filters include both lower and upper boundaries; Umbraco Search expects the upper
                         // boundary to be omitted, so we'll have to do this by hand (by subtracting from the upper boundary).
-                        var maxValue = range.MaxValue ?? decimal.MaxValue;
-                        maxValue = maxValue > 0 ? maxValue - 0.01m : maxValue + 0.01m;
+                        var maxValue = (range.MaxValue ?? decimal.MaxValue) - 0.01m;
                         return $"{FieldName(decimalRangeFilter)}:{DecimalFilterValue(range.MinValue ?? decimal.MinValue)} TO {DecimalFilterValue(maxValue)}";
                     }
                 ).ToArray(),
             // NOTE: Algolia expects unix timestamps for dates
             DateTimeOffsetExactFilter dateTimeOffsetExactFilter => dateTimeOffsetExactFilter.Values
-                .Select(value => $"{FieldName(dateTimeOffsetExactFilter)}:{value.ToUnixTimeSeconds()}").ToArray(),
+                .Select(value => $"{FieldName(dateTimeOffsetExactFilter)}={value.ToUnixTimeSeconds()}").ToArray(),
             DateTimeOffsetRangeFilter dateTimeOffsetRangeFilter => dateTimeOffsetRangeFilter.Ranges
                 .Select(range =>
                     {

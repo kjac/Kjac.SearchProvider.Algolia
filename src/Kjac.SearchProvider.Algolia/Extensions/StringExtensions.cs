@@ -13,8 +13,8 @@ internal static class StringExtensions
     public static string ValidIndexAlias(this string indexAlias)
         => indexAlias;
 
-    // TODO: escape quotes here? spaces seem to work just fine.
+    // TODO: do we need additional escaping of quotes here? spaces work just fine.
     //       see https://www.algolia.com/doc/api-reference/api-parameters/filters/?client=csharp#examples
     public static string EscapedFilterValue(this string value)
-        => value;
+        => $"\"{value}\"";
 }
