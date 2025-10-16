@@ -68,6 +68,7 @@ internal sealed class AlgoliaIndexManager : AlgoliaIndexManagingServiceBase, IAl
 
         if (response is not null)
         {
+            await client.WaitForTaskAsync(indexAlias, response.TaskID);
             _logger.LogInformation("Index {indexAlias} has been created.", indexAlias);
         }
         else
