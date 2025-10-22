@@ -1,29 +1,25 @@
-﻿using Algolia.Search.Clients;
-using Algolia.Search.Models.Search;
-using Kjac.SearchProvider.Algolia.Constants;
+﻿using Kjac.SearchProvider.Algolia.Constants;
 using Kjac.SearchProvider.Algolia.Extensions;
 using Kjac.SearchProvider.Algolia.Services;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Search.Core.Extensions;
 using Umbraco.Cms.Search.Core.Models.Indexing;
 using Umbraco.Cms.Search.Core.Models.Searching;
-using Umbraco.Cms.Search.Core.Models.Searching.Faceting;
-using Umbraco.Cms.Search.Core.Models.Searching.Filtering;
-using Umbraco.Cms.Search.Core.Models.Searching.Sorting;
 
 namespace Kjac.SearchProvider.Algolia.Tests;
 
 public partial class AlgoliaSearcherTests : AlgoliaTestBase
 {
-    private const string IndexAlias = "testindex";
     private const string FieldMultipleValues = "FieldOne";
     private const string FieldSingleValue = "FieldTwo";
     private const string FieldTextRelevance = "FieldFour";
 
+    protected override string IndexAlias => nameof(AlgoliaSearcherTests);
+
     private Dictionary<int, Guid> _documentIds = [];
 
     [SetUp]
-    public void SetUp() => _documentIds = GenerateDocumentIds();
+    public void SetUpTest() => _documentIds = GenerateDocumentIds();
 
     [Test]
     [Ignore("Invoke this to rebuild the test index")]
@@ -117,85 +113,18 @@ public partial class AlgoliaSearcherTests : AlgoliaTestBase
         throw new ApplicationException($"Could not rebuild Algolia index with alias: {IndexAlias.ValidIndexAlias()}");
     }
 
-    private async Task<SearchResult> SearchAsync(
-        string? query = null,
-        IEnumerable<Filter>? filters = null,
-        IEnumerable<Facet>? facets = null,
-        IEnumerable<Sorter>? sorters = null,
-        string? culture = null,
-        string? segment = null,
-        AccessContext? accessContext = null,
-        int skip = 0,
-        int take = 100)
-    {
-        IAlgoliaSearcher searcher = GetRequiredService<IAlgoliaSearcher>();
-        SearchResult result = await searcher.SearchAsync(
-            IndexAlias,
-            query,
-            filters,
-            facets,
-            sorters,
-            culture,
-            segment,
-            accessContext,
-            skip,
-            take
-        );
-
-        Assert.That(result, Is.Not.Null);
-        return result;
-    }
-
     private async Task EnsureIndex()
-    {
-        await DeleteIndex(IndexAlias);
-
-        await GetRequiredService<IAlgoliaIndexManager>().EnsureAsync(IndexAlias);
-
-        // configure the index to support the various test cases (filtering and faceting)
-        var validIndexAlias = IndexAlias.ValidIndexAlias();
-        SearchClient client = GetRequiredService<IAlgoliaClientFactory>().GetClient();
-        SettingsResponse? settings = await client.GetSettingsAsync(validIndexAlias);
-        if (settings is null)
-        {
-            throw new ApplicationException($"Could not fetch settings from Algolia index with alias: {validIndexAlias}");
-        }
-
-        List<string> attributesForFaceting = settings.AttributesForFaceting
-                                             ?? throw new ApplicationException($"No facet-able fields found in Algolia index with alias: {validIndexAlias}");
-
-        // don't add duplicates
-        if (attributesForFaceting.Any(attr => attr.Contains(FieldMultipleValues)) is false)
-        {
-            attributesForFaceting.AddRange(
-                [
-                    $"{IndexConstants.FieldNames.Fields}.{FieldMultipleValues}{IndexConstants.FieldTypePostfix.Texts}",
-                    $"{IndexConstants.FieldNames.Fields}.{FieldMultipleValues}{IndexConstants.FieldTypePostfix.Keywords}",
-                    $"{IndexConstants.FieldNames.Fields}.{FieldMultipleValues}{IndexConstants.FieldTypePostfix.Integers}",
-                    $"{IndexConstants.FieldNames.Fields}.{FieldMultipleValues}{IndexConstants.FieldTypePostfix.Decimals}",
-                    $"{IndexConstants.FieldNames.Fields}.{FieldMultipleValues}{IndexConstants.FieldTypePostfix.DateTimeOffsets}",
-                    $"{IndexConstants.FieldNames.Fields}.{FieldSingleValue}{IndexConstants.FieldTypePostfix.Keywords}",
-                    $"{IndexConstants.FieldNames.Fields}.{FieldSingleValue}{IndexConstants.FieldTypePostfix.Integers}",
-                ]
-            );
-        }
-
-        UpdatedAtResponse? updatedAtResponse = await client.SetSettingsAsync(validIndexAlias, new IndexSettings
-        {
-            SearchableAttributes = settings.SearchableAttributes,
-            AttributesForFaceting = attributesForFaceting,
-            // must disable typo tolerance to get deterministic search results
-            TypoTolerance = new TypoTolerance(TypoToleranceEnum.False),
-            MaxValuesPerFacet = 500
-        });
-
-        if (updatedAtResponse is null)
-        {
-            throw new ApplicationException($"Could not initiate settings update for Algolia index with alias: {validIndexAlias}");
-        }
-
-        await client.WaitForTaskAsync(validIndexAlias, updatedAtResponse.TaskID);
-    }
+        => await EnsureIndex(
+            [
+                $"{IndexConstants.FieldNames.Fields}.{FieldMultipleValues}{IndexConstants.FieldTypePostfix.Texts}",
+                $"{IndexConstants.FieldNames.Fields}.{FieldMultipleValues}{IndexConstants.FieldTypePostfix.Keywords}",
+                $"{IndexConstants.FieldNames.Fields}.{FieldMultipleValues}{IndexConstants.FieldTypePostfix.Integers}",
+                $"{IndexConstants.FieldNames.Fields}.{FieldMultipleValues}{IndexConstants.FieldTypePostfix.Decimals}",
+                $"{IndexConstants.FieldNames.Fields}.{FieldMultipleValues}{IndexConstants.FieldTypePostfix.DateTimeOffsets}",
+                $"{IndexConstants.FieldNames.Fields}.{FieldSingleValue}{IndexConstants.FieldTypePostfix.Keywords}",
+                $"{IndexConstants.FieldNames.Fields}.{FieldSingleValue}{IndexConstants.FieldTypePostfix.Integers}",
+            ]
+        );
 
     private DateTimeOffset StartDate()
         => Date(2025, 01, 01);

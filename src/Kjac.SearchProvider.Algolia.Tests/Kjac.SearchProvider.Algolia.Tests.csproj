@@ -49,6 +49,21 @@
       <Compile Update="AlgoliaSearcherTests.Decimals.cs">
         <DependentUpon>AlgoliaSearcherTests.cs</DependentUpon>
       </Compile>
+      <Compile Update="AlgoliaSearcherVarianceTests.CultureVariance.cs">
+        <DependentUpon>AlgoliaSearcherVarianceTests.cs</DependentUpon>
+      </Compile>
+      <Compile Update="AlgoliaSearcherVarianceTests.Invariance.cs">
+        <DependentUpon>AlgoliaSearcherVarianceTests.cs</DependentUpon>
+      </Compile>
+      <Compile Update="AlgoliaSearcherVarianceTests.MixedVariance.cs">
+        <DependentUpon>AlgoliaSearcherVarianceTests.cs</DependentUpon>
+      </Compile>
+      <Compile Update="AlgoliaSearcherTests.DateTimeOffsets.cs">
+        <DependentUpon>AlgoliaSearcherTests.cs</DependentUpon>
+      </Compile>
+      <Compile Update="AlgoliaSearcherTests.VariousCases.cs">
+        <DependentUpon>AlgoliaSearcherTests.cs</DependentUpon>
+      </Compile>
     </ItemGroup>
 
 </Project>
