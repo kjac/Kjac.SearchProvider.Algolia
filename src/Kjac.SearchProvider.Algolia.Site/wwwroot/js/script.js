@@ -28,9 +28,9 @@ render = (searchResult) => {
 
     document.getElementById('searchFilters').innerHTML = `
         ${renderQuery()}
-        ${renderExactFacet(searchResult, 'publishYearRange', 'Century')}
-        ${renderExactFacet(searchResult, 'length', 'Length')}
-        ${renderExactFacet(searchResult, 'authorNationality', 'Nationality')}
+        ${renderFacet(searchResult, 'publishYear', 'Century')}
+        ${renderFacet(searchResult, 'length', 'Length')}
+        ${renderFacet(searchResult, 'authorNationality', 'Nationality')}
         ${renderSorting()}
     `;
 };
@@ -81,7 +81,7 @@ renderQuery = () => `
     </fieldset>
 `;
 
-renderExactFacet = (searchResult, fieldName, label) => {
+renderFacet = (searchResult, fieldName, label) => {
     const facet = searchResult.facets.find(f => f.fieldName === fieldName);
     if (!facet){
         return '';

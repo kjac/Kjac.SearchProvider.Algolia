@@ -4,6 +4,7 @@ using Algolia.Search.Clients;
 using Algolia.Search.Models.Search;
 using Kjac.SearchProvider.Algolia.Constants;
 using Kjac.SearchProvider.Algolia.Extensions;
+using Kjac.SearchProvider.Algolia.Helpers;
 using Microsoft.Extensions.Logging;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Models;
@@ -48,16 +49,6 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
         // filters needs splitting into two parts; regular filters (not used for faceting) and facet filters
         Filter[] filtersAsArray = filters as Filter[] ?? filters?.ToArray() ?? [];
         Facet[] facetsAsArray = facets as Facet[] ?? facets?.ToArray() ?? [];
-
-        Facet[] unsupportedFacets = facetsAsArray.Where(IsUnsupportedFacetType).ToArray();
-        if (unsupportedFacets.Length > 0)
-        {
-            _logger.LogWarning(
-                "One or more unsupported facet types were omitted from the query (note that Algolia does not support range facets): {types}",
-                string.Join(", ", unsupportedFacets.Select(facet => facet.GetType().Name))
-            );
-            facetsAsArray = facetsAsArray.Except(unsupportedFacets).ToArray();
-        }
 
         var validIndexAlias = indexAlias.ValidIndexAlias();
 
@@ -230,6 +221,9 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
                             dateTimeOffsetExactFacet.FieldName,
                             facetValue.Select(kvp => new DateTimeOffsetExactFacetValue(DateTimeOffset.FromUnixTimeSeconds(long.Parse(kvp.Key)), kvp.Value))
                         ),
+                        IntegerRangeFacet integerRangeFacet => ExtractIntegerRangeFacet(integerRangeFacet, facetValue),
+                        DecimalRangeFacet decimalRangeFacet => ExtractDecimalRangeFacet(decimalRangeFacet, facetValue),
+                        DateTimeOffsetRangeFacet dateTimeOffsetRangeFacet => ExtractDateTimeOffsetRangeFacet(dateTimeOffsetRangeFacet, facetValue),
                         _ => throw new ArgumentOutOfRangeException(
                             nameof(facet),
                             $"Encountered an unsupported facet type (Algolia does not support range facets): {facet.GetType().Name}"
@@ -253,11 +247,40 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
             .ToArray();
 
         return new SearchResult(hitsResponse.NbHits ?? 0, documents, facetResults);
-    }
 
-    // seems Algolia has no support for range facets
-    private static bool IsUnsupportedFacetType(Facet facet)
-        => facet is IntegerRangeFacet or DecimalRangeFacet or DateTimeOffsetRangeFacet;
+        FacetResult ExtractIntegerRangeFacet(IntegerRangeFacet rangeFacet, IDictionary<string, int> facetValue)
+        {
+            var rangeKeys = rangeFacet.Ranges.Select(r => r.Key).ToHashSet();
+            return new FacetResult(
+                rangeFacet.FieldName,
+                facetValue.Where(kvp => rangeKeys.InvariantContains(kvp.Key)).Select(kvp
+                    => new IntegerRangeFacetValue(kvp.Key, null, null, kvp.Value)
+                )
+            );
+        }
+
+        FacetResult ExtractDecimalRangeFacet(DecimalRangeFacet rangeFacet, IDictionary<string, int> facetValue)
+        {
+            var rangeKeys = rangeFacet.Ranges.Select(r => r.Key).ToHashSet();
+            return new FacetResult(
+                rangeFacet.FieldName,
+                facetValue.Where(kvp => rangeKeys.InvariantContains(kvp.Key)).Select(kvp
+                    => new DecimalRangeFacetValue(kvp.Key, null, null, kvp.Value)
+                )
+            );
+        }
+
+        FacetResult ExtractDateTimeOffsetRangeFacet(DateTimeOffsetRangeFacet rangeFacet, IDictionary<string, int> facetValue)
+        {
+            var rangeKeys = rangeFacet.Ranges.Select(r => r.Key).ToHashSet();
+            return new FacetResult(
+                rangeFacet.FieldName,
+                facetValue.Where(kvp => rangeKeys.InvariantContains(kvp.Key)).Select(kvp
+                    => new DateTimeOffsetRangeFacetValue(kvp.Key, null, null, kvp.Value)
+                )
+            );
+        }
+    }
 
     private static string FilterValue(Filter filter)
     {
@@ -356,6 +379,10 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
             DateTimeOffsetExactFacet => FieldName(
                 facet.FieldName,
                 IndexConstants.FieldTypePostfix.DateTimeOffsets
+            ),
+            IntegerRangeFacet or DecimalRangeFacet or DateTimeOffsetRangeFacet => FieldName(
+                RangeIndexFieldHelper.FieldName(facet.FieldName),
+                IndexConstants.FieldTypePostfix.Keywords
             ),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(facet),

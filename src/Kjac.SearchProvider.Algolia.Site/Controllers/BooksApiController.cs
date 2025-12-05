@@ -18,6 +18,16 @@ namespace Kjac.SearchProvider.Algolia.Site.Controllers;
 [ApiController]
 public class BooksApiController : ControllerBase
 {
+    private static readonly (string Key, int From, int To)[] _centuryRanges =
+    [
+        ("16th Century", 1500, 1600),
+        ("17th Century", 1600, 1700),
+        ("18th Century", 1700, 1800),
+        ("19th Century", 1800, 1900),
+        ("20th Century", 1900, 2000),
+        ("21st Century", 2000, 2100)
+    ];
+
     private readonly ISearcherResolver _searcherResolver;
     private readonly IApiContentBuilder _apiContentBuilder;
     private readonly ICacheManager _cacheManager;
@@ -96,9 +106,14 @@ public class BooksApiController : ControllerBase
             false
         );
 
-        if (request.PublishYearRange?.Length > 0)
+        if (request.PublishYear?.Length > 0)
         {
-            yield return new KeywordFilter("publishYearRange", request.PublishYearRange, false);
+            IntegerRangeFilterRange[] ranges = _centuryRanges
+                .Where(c => request.PublishYear.Contains(c.Key))
+                .Select(c => new IntegerRangeFilterRange(c.From, c.To))
+                .ToArray();
+
+            yield return new IntegerRangeFilter("publishYear", ranges, false);
         }
 
         if (request.AuthorNationality?.Length > 0)
@@ -118,7 +133,12 @@ public class BooksApiController : ControllerBase
         {
             new KeywordFacet("length"),
             new KeywordFacet("authorNationality"),
-            new KeywordFacet("publishYearRange"),
+            new IntegerRangeFacet(
+                "publishYear",
+                _centuryRanges
+                    .Select(range => new IntegerRangeFacetRange(range.Key, range.From, range.To))
+                    .ToArray()
+            )
         };
         return facets;
     }

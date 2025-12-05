@@ -8,7 +8,7 @@ public class BooksSearchRequest
 
     public string[]? AuthorNationality { get; init; }
 
-    public string[]? PublishYearRange { get; init; }
+    public string[]? PublishYear { get; init; }
 
     public string? SortBy { get; init; }
 

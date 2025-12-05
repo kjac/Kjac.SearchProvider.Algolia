@@ -1,4 +1,5 @@
-﻿using Umbraco.Cms.Core.Models;
+﻿using Kjac.SearchProvider.Algolia.Helpers;
+using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Search.Core.Models.Indexing;
 using Umbraco.Cms.Search.Core.Services.ContentIndexing;
 
@@ -19,8 +20,9 @@ public class BookContentIndexer : IContentIndexer
         }
 
         // since Algolia does not support range facets, we need to calculate the ranges up front,
-        // and store them as a regular keyword value instead (because keyword facets work).
-        var publishYear = content.GetValue<int>("publishYear");
+        // using the range index field helper to create explicit fields for range faceting
+        const string propertyTypeAlias = "publishYear";
+        var publishYear = content.GetValue<int>(propertyTypeAlias);
         var publishYearRange = publishYear switch
         {
             >= 1500 and < 1600 => "16th Century",
@@ -34,7 +36,7 @@ public class BookContentIndexer : IContentIndexer
 
         return Task.FromResult<IEnumerable<IndexField>>(
             publishYearRange is not null
-                ? [new IndexField("publishYearRange", new IndexValue { Keywords = [publishYearRange] }, null, null)]
+                ? [RangeIndexFieldHelper.Create(propertyTypeAlias, publishYearRange)]
                 : []
         );
     }
