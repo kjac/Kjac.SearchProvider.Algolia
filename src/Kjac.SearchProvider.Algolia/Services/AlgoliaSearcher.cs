@@ -139,7 +139,11 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
 
         // add "facet" searches for all active facets, in order to retrieve correct facet values for these.
         // to NOT retrieve documents for these searches - documents should only be retrieved by the "main" search.
-        foreach (Facet facet in facetsAsArray)
+        var activeFilterFields = filtersAsArray.Select(filter => filter.FieldName).ToArray();
+        Facet[] facetsWithActiveFiltering = facetsAsArray
+            .Where(facet => activeFilterFields.Contains(facet.FieldName))
+            .ToArray();
+        foreach (Facet facet in facetsWithActiveFiltering)
         {
             Filter? facetFilter = filtersAsArray.FirstOrDefault(filter => filter.FieldName.InvariantEquals(facet.FieldName));
             Filter[] effectiveFilters = facetFilter is null ? filtersAsArray : filtersAsArray.Except([facetFilter]).ToArray();
@@ -250,34 +254,43 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
 
         FacetResult ExtractIntegerRangeFacet(IntegerRangeFacet rangeFacet, IDictionary<string, int> facetValue)
         {
-            var rangeKeys = rangeFacet.Ranges.Select(r => r.Key).ToHashSet();
+            var applicableRanges = rangeFacet.Ranges.ToDictionary(r => r.Key);
             return new FacetResult(
                 rangeFacet.FieldName,
-                facetValue.Where(kvp => rangeKeys.InvariantContains(kvp.Key)).Select(kvp
-                    => new IntegerRangeFacetValue(kvp.Key, null, null, kvp.Value)
-                )
+                facetValue
+                    .Select(kvp => applicableRanges.TryGetValue(kvp.Key, out IntegerRangeFacetRange? range)
+                        ? new IntegerRangeFacetValue(range.Key, range.MinValue, range.MaxValue, kvp.Value)
+                        : null
+                    )
+                    .WhereNotNull()
             );
         }
 
         FacetResult ExtractDecimalRangeFacet(DecimalRangeFacet rangeFacet, IDictionary<string, int> facetValue)
         {
-            var rangeKeys = rangeFacet.Ranges.Select(r => r.Key).ToHashSet();
+            var applicableRanges = rangeFacet.Ranges.ToDictionary(r => r.Key);
             return new FacetResult(
                 rangeFacet.FieldName,
-                facetValue.Where(kvp => rangeKeys.InvariantContains(kvp.Key)).Select(kvp
-                    => new DecimalRangeFacetValue(kvp.Key, null, null, kvp.Value)
-                )
+                facetValue
+                    .Select(kvp => applicableRanges.TryGetValue(kvp.Key, out DecimalRangeFacetRange? range)
+                        ? new DecimalRangeFacetValue(range.Key, range.MinValue, range.MaxValue, kvp.Value)
+                        : null
+                    )
+                    .WhereNotNull()
             );
         }
 
         FacetResult ExtractDateTimeOffsetRangeFacet(DateTimeOffsetRangeFacet rangeFacet, IDictionary<string, int> facetValue)
         {
-            var rangeKeys = rangeFacet.Ranges.Select(r => r.Key).ToHashSet();
+            var applicableRanges = rangeFacet.Ranges.ToDictionary(r => r.Key);
             return new FacetResult(
                 rangeFacet.FieldName,
-                facetValue.Where(kvp => rangeKeys.InvariantContains(kvp.Key)).Select(kvp
-                    => new DateTimeOffsetRangeFacetValue(kvp.Key, null, null, kvp.Value)
-                )
+                facetValue
+                    .Select(kvp => applicableRanges.TryGetValue(kvp.Key, out DateTimeOffsetRangeFacetRange? range)
+                        ? new DateTimeOffsetRangeFacetValue(range.Key, range.MinValue, range.MaxValue, kvp.Value)
+                        : null
+                    )
+                    .WhereNotNull()
             );
         }
     }

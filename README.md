@@ -167,9 +167,13 @@ public class MyIndexManagerComposer : IComposer
 
 ### Range facets
 
-Apparently, Algolia doesn't support range facets, so the search provider ignores any attempt to query range facets.
+Apparently, Algolia doesn't support range facets.
 
-If you need range facet functionality, you'll have to use pre-calculated value buckets applicable for querying as exact facets. The `IContentIndexer` from Umbraco Search is feasible for calculating these value buckets, and the test site in this repo has a [sample implementation](https://github.com/kjac/Kjac.SearchProvider.Algolia/blob/main/src/Kjac.SearchProvider.Algolia.Site/Indexing/BookContentIndexer.cs) for inspiration.
+To make this search provider work as a drop-in replacement for the default search provider, it treats range faceting somewhat like as exact keyword faceting.
+
+If you need range facet functionality, you'll have to use pre-calculated value buckets applicable for querying as exact facets. The `IContentIndexer` from Umbraco Search is feasible for calculating these value buckets.
+
+The test site in this repo contains a working [sample implementation](https://github.com/kjac/Kjac.SearchProvider.Algolia/blob/main/src/Kjac.SearchProvider.Algolia.Site/Indexing/BookContentIndexer.cs) of `IContentIndexer` for inspiration. See also how range faceting is applied in the test site [API controller](https://github.com/kjac/Kjac.SearchProvider.Algolia/blob/main/src/Kjac.SearchProvider.Algolia.Site/Controllers/BooksApiController.cs).
 
 ## Contributing
 

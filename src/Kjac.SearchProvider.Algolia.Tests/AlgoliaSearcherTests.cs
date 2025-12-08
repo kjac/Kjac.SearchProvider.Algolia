@@ -1,5 +1,6 @@
 ﻿using Kjac.SearchProvider.Algolia.Constants;
 using Kjac.SearchProvider.Algolia.Extensions;
+using Kjac.SearchProvider.Algolia.Helpers;
 using Kjac.SearchProvider.Algolia.Services;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Search.Core.Extensions;
@@ -69,6 +70,19 @@ public partial class AlgoliaSearcherTests : AlgoliaTestBase
                         Culture: null,
                         Segment: null
                     ),
+                    RangeIndexFieldHelper.Create(
+                        FieldMultipleValues,
+                                i <= 20
+                                    ? ["One"]
+                                    : i <= 40
+                                        ? ["One", "Two"]
+                                        : i <= 60
+                                            ? ["Two", "Three"]
+                                            : i <= 80
+                                                ? ["Three", "Four"]
+                                                : i <= 100
+                                                    ? ["Four"]
+                                                    : []),
                     new IndexField(
                         FieldSingleValue,
                         new IndexValue
@@ -123,6 +137,7 @@ public partial class AlgoliaSearcherTests : AlgoliaTestBase
                 $"{IndexConstants.FieldNames.Fields}.{FieldMultipleValues}{IndexConstants.FieldTypePostfix.DateTimeOffsets}",
                 $"{IndexConstants.FieldNames.Fields}.{FieldSingleValue}{IndexConstants.FieldTypePostfix.Keywords}",
                 $"{IndexConstants.FieldNames.Fields}.{FieldSingleValue}{IndexConstants.FieldTypePostfix.Integers}",
+                $"{IndexConstants.FieldNames.Fields}.{RangeIndexFieldHelper.FieldName(FieldMultipleValues)}{IndexConstants.FieldTypePostfix.Keywords}"
             ]
         );
 

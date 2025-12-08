@@ -227,7 +227,7 @@ public partial class AlgoliaSearcherTests
 
     [TestCase(true)]
     [TestCase(false)]
-    public async Task CanHandleDateTimeOffsetRangeFacet(bool filtered)
+    public async Task CanFacetDocumentsByDateTimeOffsetRange(bool filtered)
     {
         SearchResult result = await SearchAsync(
             facets:
@@ -254,15 +254,57 @@ public partial class AlgoliaSearcherTests
                 : []
         );
 
-        Assert.Multiple(() =>
-        {
-            // expecting
-            // - when filtered: 1, 2 and 3
-            // - when not filtered: all of them
-            Assert.That(result.Total, Is.EqualTo(filtered ? 3 : 100));
+        // expecting the same facets whether filtering is enabled or not, because
+        // both faceting and filtering is applied to the same field
+        var expectedFacetValues = Enumerable
+            .Range(1, 100)
+            .SelectMany(
+                i =>
+                    i <= 20
+                        ? ["One"]
+                        : i <= 40
+                            ? ["One", "Two"]
+                            : i <= 60
+                                ? ["Two", "Three"]
+                                : i <= 80
+                                    ? ["Three", "Four"]
+                                    : i <= 100
+                                        ? ["Four"]
+                                        : Array.Empty<string>()
+            )
+            .GroupBy(key => key)
+            .Select(group => new { Key = group.Key, Count = group.Count() })
+            .WhereNotNull()
+            .ToArray();
 
-            // expecting no facets - range facets should be explicitly ignored by the Algolia search provider
-            Assert.That(result.Facets, Is.Empty);
-        });
+        // expecting
+        // - when filtered: 1, 2 and 3
+        // - when not filtered: all of them
+        Assert.That(result.Total, Is.EqualTo(filtered ? 3 : 100));
+
+        FacetResult[] facets = result.Facets.ToArray();
+        Assert.That(facets, Has.Length.EqualTo(1));
+
+        FacetResult facet = facets.First();
+        Assert.That(facet.FieldName, Is.EqualTo(FieldMultipleValues));
+
+        DateTimeOffsetRangeFacetValue[] facetValues = facet.Values.OfType<DateTimeOffsetRangeFacetValue>().ToArray();
+        Assert.That(facetValues, Has.Length.EqualTo(expectedFacetValues.Length));
+        foreach (var expectedFacetValue in expectedFacetValues)
+        {
+            DateTimeOffsetRangeFacetValue? facetValue = facetValues.FirstOrDefault(f => f.Key == expectedFacetValue.Key);
+            Assert.That(facetValue, Is.Not.Null);
+            Assert.That(facetValue.Count, Is.EqualTo(expectedFacetValue.Count));
+            DateTimeOffset[] expectedBounds = expectedFacetValue.Key switch
+            {
+                "One" => [StartDate().AddDays(1), StartDate().AddDays(25)],
+                "Two" => [StartDate().AddDays(25), StartDate().AddDays(50)],
+                "Three" => [StartDate().AddDays(50), StartDate().AddDays(75)],
+                "Four" => [StartDate().AddDays(75), StartDate().AddDays(100)],
+                _ => throw new ArgumentOutOfRangeException()
+            };
+            Assert.That(expectedBounds[0], Is.EqualTo(facetValue.Min));
+            Assert.That(expectedBounds[1], Is.EqualTo(facetValue.Max));
+        }
     }
 }
