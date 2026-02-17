@@ -62,6 +62,9 @@
       <Compile Update="AlgoliaSearcherTests.VariousCases.cs">
         <DependentUpon>AlgoliaSearcherTests.cs</DependentUpon>
       </Compile>
+      <Compile Update="AlgoliaSearcherVarianceTests.SegmentVariance.cs">
+        <DependentUpon>AlgoliaSearcherVarianceTests.cs</DependentUpon>
+      </Compile>
     </ItemGroup>
 
 </Project>

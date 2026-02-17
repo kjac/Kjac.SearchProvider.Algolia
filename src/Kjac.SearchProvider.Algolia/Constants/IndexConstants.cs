@@ -21,8 +21,6 @@ internal static class IndexConstants
 
         public const string Culture = "culture";
 
-        public const string Segment = "segment";
-
         public const string AccessKeys = "accessKeys";
 
         public const string AllTexts = "allTexts";

@@ -7,7 +7,7 @@ public partial class AlgoliaSearcherVarianceTests
 {
     [TestCase("en-US", "english")]
     [TestCase("da-DK", "danish")]
-    public async Task CanQuerySingleDocumentByVariantField(string culture, string query)
+    public async Task CanQuerySingleDocumentByCultureVariantField(string culture, string query)
     {
         SearchResult result = await SearchAsync(
             query: $"{query}23",
@@ -47,7 +47,7 @@ public partial class AlgoliaSearcherVarianceTests
     [TestCase("da-DK", "invariant", 100)]
     [TestCase("da-DK", "invariant22", 1)]
     [TestCase("da-DK", "invariant2", 11)] // 2 + 20-29
-    public async Task CanQueryInvariantFieldsWithVariantSearch(string culture, string query, int expectedTotal)
+    public async Task CanQueryInvariantFieldsWithCultureVariantSearch(string culture, string query, int expectedTotal)
     {
         SearchResult result = await SearchAsync(
             query: query,
@@ -67,7 +67,7 @@ public partial class AlgoliaSearcherVarianceTests
     [TestCase("da-DK", "invariant danish22", 1)]
     [TestCase("da-DK", "invariant2 danish2", 1)]
     [TestCase("da-DK", "invariant20 danish22", 0)]
-    public async Task CanQueryMixedVariantAndInvariantFieldsWithVariantSearch(string culture, string query, int expectedTotal)
+    public async Task CanQueryMixedCultureVariantAndInvariantFieldsWithVariantSearch(string culture, string query, int expectedTotal)
     {
         SearchResult result = await SearchAsync(
             query: query,

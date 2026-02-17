@@ -14,9 +14,6 @@ public class IndexDocument : IndexDocumentBase
     [JsonPropertyName(IndexConstants.FieldNames.Culture)]
     public required string Culture { get; init; }
 
-    [JsonPropertyName(IndexConstants.FieldNames.Segment)]
-    public required string Segment { get; init; }
-
     [JsonPropertyName(IndexConstants.FieldNames.AccessKeys)]
     public required Guid[] AccessKeys { get; init; }
 

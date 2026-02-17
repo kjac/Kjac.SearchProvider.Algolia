@@ -175,6 +175,15 @@ If you need range facet functionality, you'll have to use pre-calculated value b
 
 The test site in this repo contains a working [sample implementation](https://github.com/kjac/Kjac.SearchProvider.Algolia/blob/main/src/Kjac.SearchProvider.Algolia.Site/Indexing/BookContentIndexer.cs) of `IContentIndexer` for inspiration. See also how range faceting is applied in the test site [API controller](https://github.com/kjac/Kjac.SearchProvider.Algolia/blob/main/src/Kjac.SearchProvider.Algolia.Site/Controllers/BooksApiController.cs).
 
+### Segments
+
+The search provider currently does _not_ support segments.
+
+Segments are somewhat dynamic of nature, and thus would require a lot of manual setup via the Algolia management UI, even if the search provider supported them.
+
+> [!TIP]
+> I am quite willing to consider segment support, if you're interested in contributing with a solution. Feel free to raise an issue so we can discuss it.
+
 ## Contributing
 
 Yes, please ❤️

@@ -59,7 +59,6 @@ internal sealed class AlgoliaIndexManager : AlgoliaIndexManagingServiceBase, IAl
                 AttributesForFaceting =
                 [
                     $"filterOnly({IndexConstants.FieldNames.Culture})",
-                    $"filterOnly({IndexConstants.FieldNames.Segment})",
                     $"filterOnly({IndexConstants.FieldNames.PathKeys})",
                     $"filterOnly({FieldName(CoreConstants.FieldNames.ContentTypeId, IndexConstants.FieldTypePostfix.Keywords)})"
                 ]

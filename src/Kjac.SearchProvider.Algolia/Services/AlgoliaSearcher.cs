@@ -84,8 +84,7 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
             var indexCultures = culture is null
                 ? new[] { IndexConstants.Variation.InvariantCulture }
                 : new[] { culture.IndexCulture(), IndexConstants.Variation.InvariantCulture };
-            var varianceFilterValues =
-                $"{FilterValue(indexCultures.Select(indexCulture => $"{IndexConstants.FieldNames.Culture}:{indexCulture}").ToArray())} AND {IndexConstants.FieldNames.Segment}:{segment.IndexSegment()}";
+            var varianceFilterValues = FilterValue(indexCultures.Select(indexCulture => $"{IndexConstants.FieldNames.Culture}:{indexCulture}").ToArray());
 
             // search filters are the combination of variance filters (always there) and regular filters (if any)
             searchParams.Filters = regularFilterValues.IsNullOrWhiteSpace()

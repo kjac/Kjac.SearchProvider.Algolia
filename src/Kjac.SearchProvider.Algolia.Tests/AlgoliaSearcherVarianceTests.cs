@@ -13,6 +13,7 @@ public partial class AlgoliaSearcherVarianceTests : AlgoliaTestBase
     private const string FieldInvariance = "FieldOne";
     private const string FieldCultureVariance = "FieldTwo";
     private const string FieldMixedVariance = "FieldThree";
+    private const string FieldSegmentVariance = "FieldFour";
 
     protected override string IndexAlias => nameof(AlgoliaSearcherVarianceTests);
 
@@ -106,6 +107,42 @@ public partial class AlgoliaSearcherVarianceTests : AlgoliaTestBase
                         },
                         Culture: "da-DK",
                         Segment: null
+                    ),
+                    new IndexField(
+                        FieldSegmentVariance,
+                        new IndexValue
+                        {
+                            Texts = ["defaultenglish",   $"defaultenglish{i}"]
+                        },
+                        Culture: "en-US",
+                        Segment: null
+                    ),
+                    new IndexField(
+                        FieldSegmentVariance,
+                        new IndexValue
+                        {
+                            Texts = ["seg1english",   $"seg1english{i}"]
+                        },
+                        Culture: "en-US",
+                        Segment: "seg1"
+                    ),
+                    new IndexField(
+                        FieldSegmentVariance,
+                        new IndexValue
+                        {
+                            Texts = ["defaultdanish",   $"defaultdanish{i}"]
+                        },
+                        Culture: "da-DK",
+                        Segment: null
+                    ),
+                    new IndexField(
+                        FieldSegmentVariance,
+                        new IndexValue
+                        {
+                            Texts = ["seg1danish",   $"seg1danish{i}"]
+                        },
+                        Culture: "da-DK",
+                        Segment: "seg1"
                     ),
                 ],
                 null
