@@ -5,10 +5,12 @@ using Kjac.SearchProvider.Algolia.Extensions;
 using Kjac.SearchProvider.Algolia.Models;
 using Kjac.SearchProvider.Algolia.Services.Indexing;
 using Microsoft.Extensions.Logging;
+using Umbraco.Cms.Core.Cache;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Sync;
 using Umbraco.Cms.Search.Core.Extensions;
 using Umbraco.Cms.Search.Core.Models.Indexing;
+using Umbraco.Extensions;
 using Action = Algolia.Search.Models.Search.Action;
 using CoreConstants = Umbraco.Cms.Search.Core.Constants;
 
@@ -18,18 +20,24 @@ internal sealed class AlgoliaIndexer : AlgoliaIndexManagingServiceBase, IAlgolia
 {
     private readonly IAlgoliaClientFactory _clientFactory;
     private readonly IIndexDocumentBuilder _indexDocumentBuilder;
+    private readonly IAppPolicyCache _appCache;
     private readonly ILogger<AlgoliaIndexer> _logger;
+
+    private readonly Lock _locker = new();
+    private readonly string _indicesCacheKey = $"{nameof(AlgoliaIndexer)}:{nameof(ListIndicesResponse)}";
 
     public AlgoliaIndexer(
         IServerRoleAccessor serverRoleAccessor,
         IAlgoliaClientFactory clientFactory,
         IIndexDocumentBuilder indexDocumentBuilder,
+        AppCaches appCaches,
         ILogger<AlgoliaIndexer> logger)
         : base(serverRoleAccessor)
     {
         _clientFactory = clientFactory;
         _indexDocumentBuilder = indexDocumentBuilder;
         _logger = logger;
+        _appCache = appCaches.RuntimeCache;
     }
 
     public async Task AddOrUpdateAsync(
@@ -88,6 +96,8 @@ internal sealed class AlgoliaIndexer : AlgoliaIndexManagingServiceBase, IAlgolia
         {
             _logger.LogError(e, "Unable to add/update documents in Algolia index: {indexAlias}.", validIndexAlias);
         }
+
+        _appCache.ClearByKey(_indicesCacheKey);
     }
 
     public async Task DeleteAsync(string indexAlias, IEnumerable<Guid> ids)
@@ -121,6 +131,8 @@ internal sealed class AlgoliaIndexer : AlgoliaIndexManagingServiceBase, IAlgolia
         {
             _logger.LogError(e, "Unable to delete documents from Algolia index: {indexAlias}.", validIndexAlias);
         }
+
+        _appCache.ClearByKey(_indicesCacheKey);
     }
 
     public async Task ResetAsync(string indexAlias)
@@ -147,5 +159,42 @@ internal sealed class AlgoliaIndexer : AlgoliaIndexManagingServiceBase, IAlgolia
         {
             _logger.LogError(e, "Unable to clear all documents from Algolia index: {indexAlias}.", validIndexAlias);
         }
+
+        _appCache.ClearByKey(_indicesCacheKey);
+    }
+
+    public Task<IndexMetadata> GetMetadataAsync(string indexAlias)
+    {
+        if (_locker.TryEnter(TimeSpan.FromSeconds(10)) is false)
+        {
+            return Task.FromResult(new IndexMetadata(0, HealthStatus.Unknown));
+        }
+
+        ListIndicesResponse? indexes = _appCache.GetCacheItem<ListIndicesResponse?>(
+            _indicesCacheKey,
+            () =>
+            {
+                SearchClient client = _clientFactory.GetClient();
+                return client.ListIndices();
+            },
+            TimeSpan.FromMinutes(5)
+        );
+
+        _locker.Exit();
+
+        var validIndexAlias = indexAlias.ValidIndexAlias();
+        FetchedIndex? index = indexes?.Items.FirstOrDefault(i => i.Name == validIndexAlias);
+        if (index is null)
+        {
+            return Task.FromResult(new IndexMetadata(0, HealthStatus.Unknown));
+        }
+
+        HealthStatus healthStatus = index.PendingTask
+            ? HealthStatus.Rebuilding
+            : index.Entries == 0
+            ? HealthStatus.Empty
+            :  HealthStatus.Healthy;
+
+        return Task.FromResult(new IndexMetadata(index.Entries, healthStatus));
     }
 }

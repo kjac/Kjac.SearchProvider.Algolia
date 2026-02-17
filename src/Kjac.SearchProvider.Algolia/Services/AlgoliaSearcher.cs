@@ -27,6 +27,7 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
         _logger = logger;
     }
 
+    // TODO: implement suggestions
     public async Task<SearchResult> SearchAsync(
         string indexAlias,
         string? query,
@@ -37,7 +38,8 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
         string? segment,
         AccessContext? accessContext,
         int skip,
-        int take)
+        int take,
+        int maxSuggestions = 0)
     {
         if (query is null && filters is null && facets is null && sorters is null)
         {

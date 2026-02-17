@@ -9,6 +9,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		..\.gitignore = ..\.gitignore
 		..\README.md = ..\README.md
+		global.json = global.json
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kjac.SearchProvider.Algolia.Site", "Kjac.SearchProvider.Algolia.Site\Kjac.SearchProvider.Algolia.Site.csproj", "{227B7A63-46A4-4C6F-80DA-ED0B8B83149E}"

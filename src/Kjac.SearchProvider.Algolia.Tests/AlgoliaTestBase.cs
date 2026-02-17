@@ -5,11 +5,13 @@ using Kjac.SearchProvider.Algolia.Extensions;
 using Kjac.SearchProvider.Algolia.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Umbraco.Cms.Core.Cache;
 using Umbraco.Cms.Core.Sync;
 using Umbraco.Cms.Search.Core.Models.Searching;
 using Umbraco.Cms.Search.Core.Models.Searching.Faceting;
 using Umbraco.Cms.Search.Core.Models.Searching.Filtering;
 using Umbraco.Cms.Search.Core.Models.Searching.Sorting;
+using Umbraco.Extensions;
 
 namespace Kjac.SearchProvider.Algolia.Tests;
 
@@ -33,6 +35,8 @@ public abstract class AlgoliaTestBase
             .AddLogging();
 
         serviceCollection.AddSingleton<IServerRoleAccessor, SingleServerRoleAccessor>();
+
+        serviceCollection.AddUnique(AppCaches.NoCache);
 
         PerformAdditionalConfiguration(serviceCollection);
 

@@ -15,9 +15,7 @@ public class SiteComposer : IComposer
             // add core services for search abstractions
             .AddSearchCore()
             // use the Algolia search provider
-            .AddAlgoliaSearchProvider()
-            // force rebuild indexes after startup
-            .RebuildIndexesAfterStartup();
+            .AddAlgoliaSearchProvider();
 
         // configure System.Text.Json to allow serializing output models
         builder.ConfigureJsonOptions();
