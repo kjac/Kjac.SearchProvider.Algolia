@@ -20,23 +20,23 @@ public static class UmbracoBuilderExtensions
             options =>
             {
                 // register Algolia indexes for draft and published content
-                options.RegisterIndex<IAlgoliaIndexer, IAlgoliaSearcher, IDraftContentChangeStrategy>(
+                options.RegisterContentIndex<IAlgoliaIndexer, IAlgoliaSearcher, IDraftContentChangeStrategy>(
                     CoreConstants.IndexAliases.DraftContent,
                     UmbracoObjectTypes.Document
                 );
-                options.RegisterIndex<IAlgoliaIndexer, IAlgoliaSearcher, IPublishedContentChangeStrategy>(
+                options.RegisterContentIndex<IAlgoliaIndexer, IAlgoliaSearcher, IPublishedContentChangeStrategy>(
                     CoreConstants.IndexAliases.PublishedContent,
                     UmbracoObjectTypes.Document
                 );
 
                 // register Algolia index for media
-                options.RegisterIndex<IAlgoliaIndexer, IAlgoliaSearcher, IDraftContentChangeStrategy>(
+                options.RegisterContentIndex<IAlgoliaIndexer, IAlgoliaSearcher, IDraftContentChangeStrategy>(
                     CoreConstants.IndexAliases.DraftMedia,
                     UmbracoObjectTypes.Media
                 );
 
                 // register Algolia index for members
-                options.RegisterIndex<IAlgoliaIndexer, IAlgoliaSearcher, IDraftContentChangeStrategy>(
+                options.RegisterContentIndex<IAlgoliaIndexer, IAlgoliaSearcher, IDraftContentChangeStrategy>(
                     CoreConstants.IndexAliases.DraftMembers,
                     UmbracoObjectTypes.Member
                 );
