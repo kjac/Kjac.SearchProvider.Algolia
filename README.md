@@ -116,6 +116,25 @@ As an example: If you want to sort the default published content index (`Umb_Pub
 > [!NOTE]
 > At the time of writing, the search provider does not support sorting by score ascending (reverse relevance sorting).
 
+## Custom content indexes
+
+If you need custom content indexes, register them with the `RegisterAlgoliaContentIndex` extension method from the [`IndexOptionsExtensions`](https://github.com/kjac/Kjac.SearchProvider.Algolia/blob/main/src/Kjac.SearchProvider.Algolia/Extensions/IndexOptionsExtensions.cs). This ensures correct registration, specially in load balanced setups:
+
+```csharp
+namespace My.Site;
+
+public class AdditionalIndexesComposer : IComposer
+{
+    public void Compose(IUmbracoBuilder builder)
+        => builder.Services.Configure<IndexOptions>(options
+            => options.RegisterAlgoliaContentIndex<IPublishedContentChangeStrategy>(
+                "MyPublishedContentIndex",
+                UmbracoObjectTypes.Document
+            )
+        );
+}
+```
+
 ## Extendability
 
 Generally, you should look to Umbraco search for extension points. There are however a few notable extension points in this search provider as well.

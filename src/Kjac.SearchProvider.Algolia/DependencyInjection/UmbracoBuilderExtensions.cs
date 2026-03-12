@@ -1,5 +1,5 @@
-﻿using Kjac.SearchProvider.Algolia.NotificationHandlers;
-using Kjac.SearchProvider.Algolia.Services;
+﻿using Kjac.SearchProvider.Algolia.Extensions;
+using Kjac.SearchProvider.Algolia.NotificationHandlers;
 using Microsoft.Extensions.DependencyInjection;
 using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Cms.Core.Models;
@@ -20,23 +20,23 @@ public static class UmbracoBuilderExtensions
             options =>
             {
                 // register Algolia indexes for draft and published content
-                options.RegisterContentIndex<IAlgoliaIndexer, IAlgoliaSearcher, IDraftContentChangeStrategy>(
+                options.RegisterAlgoliaContentIndex<IDraftContentChangeStrategy>(
                     CoreConstants.IndexAliases.DraftContent,
                     UmbracoObjectTypes.Document
                 );
-                options.RegisterContentIndex<IAlgoliaIndexer, IAlgoliaSearcher, IPublishedContentChangeStrategy>(
+                options.RegisterAlgoliaContentIndex<IPublishedContentChangeStrategy>(
                     CoreConstants.IndexAliases.PublishedContent,
                     UmbracoObjectTypes.Document
                 );
 
                 // register Algolia index for media
-                options.RegisterContentIndex<IAlgoliaIndexer, IAlgoliaSearcher, IDraftContentChangeStrategy>(
+                options.RegisterAlgoliaContentIndex<IDraftContentChangeStrategy>(
                     CoreConstants.IndexAliases.DraftMedia,
                     UmbracoObjectTypes.Media
                 );
 
                 // register Algolia index for members
-                options.RegisterContentIndex<IAlgoliaIndexer, IAlgoliaSearcher, IDraftContentChangeStrategy>(
+                options.RegisterAlgoliaContentIndex<IDraftContentChangeStrategy>(
                     CoreConstants.IndexAliases.DraftMembers,
                     UmbracoObjectTypes.Member
                 );
