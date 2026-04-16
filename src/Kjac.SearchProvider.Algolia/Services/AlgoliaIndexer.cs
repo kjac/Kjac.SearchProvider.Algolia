@@ -167,7 +167,7 @@ internal sealed class AlgoliaIndexer : AlgoliaIndexManagingServiceBase, IAlgolia
     {
         if (_locker.TryEnter(TimeSpan.FromSeconds(10)) is false)
         {
-            return Task.FromResult(new IndexMetadata(0, HealthStatus.Unknown));
+            return Task.FromResult(new IndexMetadata(0, HealthStatus.Unknown, PackageConstants.ProviderIdentifier));
         }
 
         ListIndicesResponse? indexes = _appCache.GetCacheItem<ListIndicesResponse?>(
@@ -186,7 +186,7 @@ internal sealed class AlgoliaIndexer : AlgoliaIndexManagingServiceBase, IAlgolia
         FetchedIndex? index = indexes?.Items.FirstOrDefault(i => i.Name == validIndexAlias);
         if (index is null)
         {
-            return Task.FromResult(new IndexMetadata(0, HealthStatus.Unknown));
+            return Task.FromResult(new IndexMetadata(0, HealthStatus.Unknown, PackageConstants.ProviderIdentifier));
         }
 
         HealthStatus healthStatus = index.PendingTask
@@ -195,6 +195,6 @@ internal sealed class AlgoliaIndexer : AlgoliaIndexManagingServiceBase, IAlgolia
             ? HealthStatus.Empty
             :  HealthStatus.Healthy;
 
-        return Task.FromResult(new IndexMetadata(index.Entries, healthStatus));
+        return Task.FromResult(new IndexMetadata(index.Entries, healthStatus, PackageConstants.ProviderIdentifier));
     }
 }
