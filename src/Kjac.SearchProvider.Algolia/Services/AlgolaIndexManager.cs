@@ -55,9 +55,10 @@ internal sealed class AlgoliaIndexManager : AlgoliaIndexManagingServiceBase, IAl
                     IndexConstants.FieldNames.AllTextsR3,
                     IndexConstants.FieldNames.AllTexts,
                 ],
-                // enable filtering for culture, segment and content type ID
+                // enable filtering for access keys, culture, segment and content type ID
                 AttributesForFaceting =
                 [
+                    $"filterOnly({IndexConstants.FieldNames.AccessKeys})",
                     $"filterOnly({IndexConstants.FieldNames.Culture})",
                     $"filterOnly({IndexConstants.FieldNames.PathKeys})",
                     $"filterOnly({FieldName(CoreConstants.FieldNames.ContentTypeId, IndexConstants.FieldTypePostfix.Keywords)})"

@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Text;
 using System.Text.Json.Serialization;
 using Algolia.Search.Clients;
 using Algolia.Search.Models.Search;
@@ -80,16 +81,28 @@ internal sealed class AlgoliaSearcher : AlgoliaServiceBase, IAlgoliaSearcher
                     .Select(FilterValue)
             );
 
-            // variance filters
+            // system filters
+            var systemFilterValues = new StringBuilder();
+
+            // - variance filter
             var indexCultures = culture is null
                 ? new[] { IndexConstants.Variation.InvariantCulture }
                 : new[] { culture.IndexCulture(), IndexConstants.Variation.InvariantCulture };
-            var varianceFilterValues = FilterValue(indexCultures.Select(indexCulture => $"{IndexConstants.FieldNames.Culture}:{indexCulture}").ToArray());
+            systemFilterValues.Append(FilterValue(indexCultures.Select(indexCulture => $"{IndexConstants.FieldNames.Culture}:{indexCulture}").ToArray()));
 
-            // search filters are the combination of variance filters (always there) and regular filters (if any)
+            // - protected access filter
+            if (accessContext?.Bypass is not true)
+            {
+                Guid[] accessKeys = accessContext is null
+                    ? [Guid.Empty]
+                    : new[] { Guid.Empty, accessContext.PrincipalId }.Union(accessContext.GroupIds ?? []).ToArray();
+                systemFilterValues.Append($" AND {FilterValue(accessKeys.Select(key => $"{IndexConstants.FieldNames.AccessKeys}:{key}").ToArray())}");
+            }
+
+            // search filters are the combination of system filters (always there) and regular filters (if any)
             searchParams.Filters = regularFilterValues.IsNullOrWhiteSpace()
-                ? varianceFilterValues
-                : $"{varianceFilterValues} AND {regularFilterValues}";
+                ? systemFilterValues.ToString()
+                : $"{systemFilterValues} AND {regularFilterValues}";
 
             // numeric (including datetime) filters
             var numericFilters = effectiveFilters
