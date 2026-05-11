@@ -84,6 +84,41 @@ internal sealed class AlgoliaIndexer : AlgoliaIndexManagingServiceBase, IAlgolia
         SearchClient client = _clientFactory.GetClient();
         var validIndexAlias = indexAlias.ValidIndexAlias();
 
+        // first delete all documents with this ID, to clean up any stray variations
+        // NOTE: per the Algolia docs, one should always fetch the IDs and perform delete-by-ID if possible, as this
+        //       apparently performs much better than a single delete-by-query
+        try
+        {
+            BrowseResponse<BrowseIndexDocument>? browseResponse = await client.BrowseAsync<BrowseIndexDocument>(
+                validIndexAlias,
+                new BrowseParams(
+                    new BrowseParamsObject
+                    {
+                        FacetFilters = new FacetFilters(
+                            [
+                                new FacetFilters($"{IndexConstants.FieldNames.Key}:{id}")
+                            ]
+                        ),
+                        AttributesToRetrieve = [IndexConstants.FieldNames.Id]
+                    }
+                )
+            );
+
+            if (browseResponse?.Hits.Count > 0)
+            {
+                await client.DeleteObjectsAsync(
+                    validIndexAlias,
+                    browseResponse.Hits.Select(hit => hit.Id).ToArray()
+                );
+            }
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Unable to delete documents from Algolia index before add/update: {indexAlias}.", validIndexAlias);
+            return;
+        }
+
+        // next insert all the variations as a batch operation
         try
         {
             await client.ChunkedBatchAsync(
@@ -112,20 +147,35 @@ internal sealed class AlgoliaIndexer : AlgoliaIndexManagingServiceBase, IAlgolia
         var validIndexAlias = indexAlias.ValidIndexAlias();
         try
         {
-            var deleteByParams = new DeleteByParams
-            {
-                FacetFilters = new FacetFilters(
-                    [
-                        new FacetFilters(
-                            ids.Select(id =>
-                                    new FacetFilters($"{IndexConstants.FieldNames.PathKeys}:{id.AsKeyword()}")
+            // NOTE: per the Algolia docs, one should always fetch the IDs and perform delete-by-ID if possible, as this
+            //       apparently performs much better than a single delete-by-query
+            BrowseResponse<BrowseIndexDocument>? browseResponse = await client.BrowseAsync<BrowseIndexDocument>(
+                validIndexAlias,
+                new BrowseParams(
+                    new BrowseParamsObject
+                    {
+                        FacetFilters = new FacetFilters(
+                            [
+                                new FacetFilters(
+                                    ids.Select(id =>
+                                            new FacetFilters($"{IndexConstants.FieldNames.PathKeys}:{id.AsKeyword()}")
+                                        )
+                                        .ToList()
                                 )
-                                .ToList()
-                        )
-                    ]
+                            ]
+                        ),
+                        AttributesToRetrieve = [IndexConstants.FieldNames.Id]
+                    }
                 )
-            };
-            await client.DeleteByAsync(validIndexAlias, deleteByParams);
+            );
+
+            if (browseResponse?.Hits.Count > 0)
+            {
+                await client.DeleteObjectsAsync(
+                    validIndexAlias,
+                    browseResponse.Hits.Select(hit => hit.Id).ToArray()
+                );
+            }
         }
         catch (Exception e)
         {
@@ -196,5 +246,9 @@ internal sealed class AlgoliaIndexer : AlgoliaIndexManagingServiceBase, IAlgolia
             :  HealthStatus.Healthy;
 
         return Task.FromResult(new IndexMetadata(index.Entries, healthStatus, PackageConstants.ProviderIdentifier));
+    }
+
+    private class BrowseIndexDocument : IndexDocumentBase
+    {
     }
 }

@@ -140,9 +140,162 @@ public class AlgoliaIndexerTests : AlgoliaTestBase
         });
     }
 
+    [Test]
+    public async Task CanAddVariant()
+    {
+        await EnsureTestIndex();
+
+        var id = Guid.NewGuid();
+        await Indexer.AddOrUpdateAsync(
+            IndexAlias,
+            id,
+            UmbracoObjectTypes.Unknown,
+            [new Variation(Culture: "en-US", Segment: null)],
+            [
+                new IndexField(
+                    Umbraco.Cms.Search.Core.Constants.FieldNames.PathIds,
+                    new IndexValue { Keywords = [id.AsKeyword()] },
+                    Culture: null,
+                    Segment: null
+                )
+            ],
+            null
+        );
+
+        WaitForIndexOperationsToComplete();
+
+        SearchResult result = await SearchAsync(
+            culture: "en-US",
+            filters: [
+                new KeywordFilter(
+                    Umbraco.Cms.Search.Core.Constants.FieldNames.PathIds,
+                    [id.AsKeyword()],
+                    false
+                )
+            ]
+        );
+
+        Assert.That(result.Total, Is.EqualTo(1));
+
+        await Indexer.AddOrUpdateAsync(
+            IndexAlias,
+            id,
+            UmbracoObjectTypes.Unknown,
+            [
+                new Variation(Culture: "en-US", Segment: null),
+                new Variation(Culture: "da-DK", Segment: null)
+            ],
+            [
+                new IndexField(
+                    Umbraco.Cms.Search.Core.Constants.FieldNames.PathIds,
+                    new IndexValue { Keywords = [id.AsKeyword()] },
+                    Culture: null,
+                    Segment: null
+                )
+            ],
+            null
+        );
+
+        WaitForIndexOperationsToComplete();
+
+        foreach (var culture in new [] { "en-US", "da-DK" })
+        {
+            result = await SearchAsync(
+                culture: culture,
+                filters: [
+                    new KeywordFilter(
+                        Umbraco.Cms.Search.Core.Constants.FieldNames.PathIds,
+                        [id.AsKeyword()],
+                        false
+                    )
+                ]
+            );
+
+            Assert.That(result.Total, Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task CanRemoveVariant()
+    {
+        await EnsureTestIndex();
+
+        var id = Guid.NewGuid();
+        await Indexer.AddOrUpdateAsync(
+            IndexAlias,
+            id,
+            UmbracoObjectTypes.Unknown,
+            [
+                new Variation(Culture: "en-US", Segment: null),
+                new Variation(Culture: "da-DK", Segment: null)
+            ],
+            [
+                new IndexField(
+                    Umbraco.Cms.Search.Core.Constants.FieldNames.PathIds,
+                    new IndexValue { Keywords = [id.AsKeyword()] },
+                    Culture: null,
+                    Segment: null
+                )
+            ],
+            null
+        );
+
+        WaitForIndexOperationsToComplete();
+
+        foreach (var culture in new [] { "en-US", "da-DK" })
+        {
+            SearchResult result = await SearchAsync(
+                culture: culture,
+                filters: [
+                    new KeywordFilter(
+                        Umbraco.Cms.Search.Core.Constants.FieldNames.PathIds,
+                        [id.AsKeyword()],
+                        false
+                    )
+                ]
+            );
+
+            Assert.That(result.Total, Is.EqualTo(1));
+        }
+
+        await Indexer.AddOrUpdateAsync(
+            IndexAlias,
+            id,
+            UmbracoObjectTypes.Unknown,
+            [new Variation(Culture: "en-US", Segment: null)],
+            [
+                new IndexField(
+                    Umbraco.Cms.Search.Core.Constants.FieldNames.PathIds,
+                    new IndexValue { Keywords = [id.AsKeyword()] },
+                    Culture: null,
+                    Segment: null
+                )
+            ],
+            null
+        );
+
+        WaitForIndexOperationsToComplete();
+
+        foreach (var culture in new [] { "en-US", "da-DK" })
+        {
+            SearchResult result = await SearchAsync(
+                culture: culture,
+                filters: [
+                    new KeywordFilter(
+                        Umbraco.Cms.Search.Core.Constants.FieldNames.PathIds,
+                        [id.AsKeyword()],
+                        false
+                    )
+                ]
+            );
+
+            Assert.That(result.Total, Is.EqualTo(culture == "da-DK" ? 0 : 1));
+        }
+    }
+
     private async Task<Dictionary<string, Guid>> CreateIndexStructure()
     {
-        await EnsureIndex([$"{IndexConstants.FieldNames.Fields}.{Umbraco.Cms.Search.Core.Constants.FieldNames.PathIds}{IndexConstants.FieldTypePostfix.Keywords}"]);
+        await EnsureTestIndex();
 
         var ids = new Dictionary<string, Guid>();
         for (var i = 0; i < 3; i++)
@@ -223,6 +376,8 @@ public class AlgoliaIndexerTests : AlgoliaTestBase
         return ids;
     }
 
+    private async Task EnsureTestIndex() => await EnsureIndex([$"{IndexConstants.FieldNames.Fields}.{Umbraco.Cms.Search.Core.Constants.FieldNames.PathIds}{IndexConstants.FieldTypePostfix.Keywords}"]);
+
     private IAlgoliaIndexManager IndexManager => GetRequiredService<IAlgoliaIndexManager>();
 
     private IAlgoliaIndexer Indexer => GetRequiredService<IAlgoliaIndexer>();
@@ -258,5 +413,5 @@ public class AlgoliaIndexerTests : AlgoliaTestBase
     }
 
     private void WaitForIndexOperationsToComplete()
-        => Thread.Sleep(2000);
+        => Thread.Sleep(4000);
 }
